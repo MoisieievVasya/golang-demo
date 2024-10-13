@@ -15,7 +15,7 @@ services:
       DB_PORT: 5432
       DB_USER: postgres
       DB_PASS: postgres_password
-      DB_NAME: sillydb
+      DB_NAME: db
     depends_on:
       - postgres
     command: air
@@ -28,7 +28,7 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres_password
-      POSTGRES_DB: sillydb
+      POSTGRES_DB: db
     ports:
       - "5432:5432"
 
