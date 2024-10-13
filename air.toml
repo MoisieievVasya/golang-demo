@@ -1,0 +1,11 @@
+# Config file for Air
+[build]
+bin = "app"
+cmd = "go build -o ./app ./cmd/main.go"
+delay = 2000
+full_bin = "air-app"
+log = "air_errors.log"
+exclude_dir = ["vendor", "tmp"]
+
+[log]
+level = "debug"
