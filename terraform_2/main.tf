@@ -2,25 +2,45 @@ provider "aws" {
   region = "us-east-1" 
 }
 
+data "aws_ami" "ubuntu_20_04" {
+  most_recent = true
+  owners      = ["099720109477"]
+
+  filter {
+    name   = "name"
+    values = ["ubuntu/images/hvm-ssd/ubuntu-focal-20.04-amd64-server-*"]
+  }
+
+  filter {
+    name   = "architecture"
+    values = ["x86_64"]
+  }
+
+  filter {
+    name   = "root-device-type"
+    values = ["ebs"]
+  }
+}
+
 # VPC and Subnets 
-resource "aws_vpc" "demo_vpc" {
+resource "aws_vpc" "golang_vpc" {
   cidr_block = "10.0.0.0/16"
 }
 
 resource "aws_subnet" "demo_subnet" {
   count                  = 2
   cidr_block             = cidrsubnet(aws_vpc.golang_vpc.cidr_block, 8, count.index)
-  vpc_id                 = aws_vpc.demo_vpc.id
+  vpc_id                 = aws_vpc.golang_vpc.id
   availability_zone      = data.aws_availability_zones.available.names[count.index]
   map_public_ip_on_launch = true
 }
 
 resource "aws_internet_gateway" "golang_igw" {
-  vpc_id = aws_vpc.demo_vpc.id
+  vpc_id = aws_vpc.golang_vpc.id
 }
 
 resource "aws_route_table" "golang_route_table" {
-  vpc_id = aws_vpc.demo_vpc.id
+  vpc_id = aws_vpc.golang_vpc.id
 
   route {
     cidr_block = "0.0.0.0/0"
@@ -37,7 +57,7 @@ resource "aws_route_table_association" "golang_route_assoc" {
 
 # Security Group
 resource "aws_security_group" "golang_sg" {
-  vpc_id = aws_vpc.demo_vpc.id
+  vpc_id = aws_vpc.golang_vpc.id
 
   ingress {
     from_port   = 80
@@ -45,7 +65,12 @@ resource "aws_security_group" "golang_sg" {
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
-
+  ingress {
+      from_port   = 22
+      to_port     = 22
+      protocol    = "tcp"
+      cidr_blocks = ["0.0.0.0/0"]
+    }
   egress {
     from_port   = 0
     to_port     = 0
@@ -57,7 +82,7 @@ resource "aws_security_group" "golang_sg" {
 # Launch Template
 resource "aws_launch_template" "golang_lt" {
   name_prefix   = "demo-lt-"
-  image_id      = "ami-0c02fb55956c7d316" # Amazon Linux 2 AMI
+  image_id      = data.aws_ami.ubuntu_20_04.id
   instance_type = "t2.micro"
   
   network_interfaces {
@@ -65,15 +90,14 @@ resource "aws_launch_template" "golang_lt" {
     security_groups             = [aws_security_group.golang_sg.id]
   }
 
-  user_data = templatefile("ec2-setup.sh", {
-    db_endpoint = replace(aws_db_instance.postgres.endpoint,  ":5432", ""),
+  user_data = base64encode(templatefile("ec2-setup.sh", {
+    db_endpoint = var.db_endpoint,
     db_user     = var.db_username,
     db_password = var.db_password
     db_name = var.db_name
-  })
+  })) 
 }
 
-# Application Load Balancer
 resource "aws_lb" "golang_lb" {
   name               = "demo-alb"
   internal           = false
@@ -82,16 +106,15 @@ resource "aws_lb" "golang_lb" {
   subnets            = aws_subnet.demo_subnet[*].id
 }
 
-# Target Group
 resource "aws_lb_target_group" "golang_tg" {
   name        = "demo-tg"
   port        = 80
   protocol    = "HTTP"
-  vpc_id      = aws_vpc.demo_vpc.id
+  vpc_id      = aws_vpc.golang_vpc.id
   target_type = "instance"
 }
 
-# Listener
+
 resource "aws_lb_listener" "golang_listener" {
   load_balancer_arn = aws_lb.golang_lb.arn
   port              = 80
@@ -103,7 +126,6 @@ resource "aws_lb_listener" "golang_listener" {
   }
 }
 
-# Autoscaling Group
 resource "aws_autoscaling_group" "golang_asg" {
   desired_capacity    = 1
   max_size            = 2
@@ -124,7 +146,6 @@ resource "aws_autoscaling_group" "golang_asg" {
   }
 }
 
-# Data for availability zones
 data "aws_availability_zones" "available" {
   state = "available"
 }

@@ -12,3 +12,8 @@ variable "db_name" {
   description = "The database name"
   default = "dbgolang"
 }
+
+variable "db_endpoint" {
+  description = "The database endpoint"
+  default = "localhost"
+}

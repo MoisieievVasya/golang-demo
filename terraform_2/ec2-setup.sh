@@ -4,40 +4,43 @@ sudo apt update -y
 sudo apt install -y nginx git postgresql postgresql-contrib
 sudo snap install go --classic
 
-# Start and enable Nginx
+# Start and enable nginx
 sudo systemctl start nginx
 sudo systemctl enable nginx
 
-# Install and configure PostgreSQL locally 
+# Start and enable PostgreSQL
 sudo service postgresql start
 sudo systemctl enable postgresql
 
-# Set environment variables from Terraform 
-DB_ENDPOINT="${db_endpoint}"
-DB_USER="${db_user}"
-DB_PASS="${db_password}"
-DB_NAME="${db_name}"
-DB_PORT=5432
-GIN_MODE=release
 
+# Define database environment variables (using postgres user)
+DB_ENDPOINT="localhost"
+DB_USER="postgres"  # Use default postgres user
+DB_PASS="password"  # Use the password we just set for postgres
+DB_NAME="dbgolang"
+DB_PORT=5432
+GIN_MODE="release"
 
 # Clone the Golang demo application
 cd /home/ubuntu
 git clone https://github.com/MoisieievVasya/golang-demo.git
 cd golang-demo
 
-sudo systemctl start postgresql 
-psql -U postgres -c "CREATE DATABASE dbgolang;"
-psql -h localhost -U postgres -d dbgolang -f db_schema.sql
+# Start PostgreSQL, create database, and apply schema using the postgres user
+sudo systemctl start postgresql
 
-# Build the Golang binary
+# Creating the database
+sudo -u postgres psql -f terraform_2/db_schema.sql  
+sudo -u postgres psql -c "ALTER USER postgres WITH PASSWORD 'password';"
+
+# Build and run the Golang demo application
 sudo GOOS=linux GOARCH=amd64 go build -o golang-demo -buildvcs=false
 sudo chmod +x golang-demo
 
-# Start the Golang application with the required environment variables
-sudo DB_ENDPOINT="localhost" DB_PORT="5432" DB_USER="postgres" DB_NAME="dbgolang" ./golang-demo &
+# Start the Golang demo application with the environment variables
+sudo DB_ENDPOINT=$DB_ENDPOINT DB_PORT=$DB_PORT DB_USER=$DB_USER DB_PASS=$DB_PASS DB_NAME=$DB_NAME ./golang-demo &
 
-# Configure Nginx to proxy traffic to the Golang application
+# Configure Nginx to proxy requests to the Golang app
 sudo bash -c 'cat > /etc/nginx/sites-available/default' << EOF
 server {
     listen 80;
