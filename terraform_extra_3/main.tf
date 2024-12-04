@@ -4,7 +4,7 @@ provider "aws" {
 
 data "aws_ami" "ubuntu_20_04" {
   most_recent = true
-  owners      = ["self"]
+  owners      = ["099720109477"]
 
   filter {
     name   = "name"
