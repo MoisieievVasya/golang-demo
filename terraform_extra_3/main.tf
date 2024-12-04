@@ -86,6 +86,8 @@ resource "aws_instance" "silly_demo" {
 
   ami           = data.aws_ami.ubuntu_20_04.id
   instance_type = "t2.micro"
+  subnet_id = aws_subnet.demo_subnet[count.index].id
+  vpc_security_group_ids = [aws_security_group.golang_sg.id]
 
   user_data = base64encode(templatefile("ec2-setup.sh", {
     db_endpoint = var.db_endpoint,
