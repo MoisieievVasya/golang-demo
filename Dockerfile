@@ -1,14 +1,13 @@
-# Use an official base image
-FROM ubuntu:20.04
+FROM golang:1.23-alpine
 
-# Set working directory
+# Step 2: Set the working directory in the container
 WORKDIR /app
 
-# Copy files to the container
+# Step 3: Copy the Go module files and download dependencies
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Step 4: Copy the rest of the application code
 COPY . .
 
-# Install dependencies (example)
-RUN apt-get update && apt-get install -y curl
-
-# Default command
-CMD ["echo", "Hello, Docker!"]
+EXPOSE 8080
